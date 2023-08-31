@@ -44,9 +44,6 @@
 
 static char *Afile;
 static char *Bfile;
-static char *Pr;
-static char *Left;
-static char *Right;
 static char *File[2];
 static char *p;
 
@@ -57,10 +54,9 @@ static int Acount;
 static int Bcount;
 static int Anum;
 static int Bnum;
-static int Fnamelen;
 static int Same;
 static int Afd, Bfd;
-static int Aconad, Bconad;
+static char *Aconad, *Bconad;
 static int maxgap; /* intention was that an insertion longer than this would fail.  Not yet done. */
 static int flag;
 static int Alines, Blines, Aline, Bline;  
@@ -73,7 +69,7 @@ static off_t Aflen, Bflen;
 #define Maxlines 65536
 #define Maxlinewidth 512
 
-static int connect(char *filename, int *fd, off_t *flen, int *eflag) {
+static char *connect(char *filename, int *fd, off_t *flen, int *eflag) {
   char *conad;
   /* If file is not mappable we could read it into memory instead. */
   *eflag = 0;
@@ -86,16 +82,19 @@ static int connect(char *filename, int *fd, off_t *flen, int *eflag) {
   if ((int)conad == -1) {
     fprintf(stderr, "failed to map input file \"%s\" - %s\n", filename, strerror(errno)); exit(EXIT_FAILURE);
   }
-  return (int)conad;
+  return conad;
 }
 
-static void disconnect(char *filename, int conad, int fd, off_t flen, int *eflag) {
+static void disconnect(char *filename, char *conad, int fd, off_t flen, int *eflag) {
   int rc;
   *eflag = 0;
-  rc = munmap((void *)conad, flen);
+  rc = munmap(conad, flen);
   if (rc) {
-    fprintf(stderr, "failed to unmap input file \"%s\" of length %ld at %p - %s\n", filename, (long)flen, (void *)conad, strerror(errno)); exit(EXIT_FAILURE);
-  } else flen = lseek(fd, (off_t)0, SEEK_END);
+    fprintf(stderr, "failed to unmap input file \"%s\" of length %ld at %p - %s\n", filename, (long)flen, conad, strerror(errno)); exit(EXIT_FAILURE);
+  } else {
+    //flen = lseek(fd, (off_t)0, SEEK_END);
+    close(fd);
+  }
 }
 
 static int Match(int Aline, int Bline) {
@@ -149,27 +148,30 @@ int main(int argc, char **argv) {
   Bconad = connect(Bfile, &Bfd, &Bflen, &flag);
 
   Alines = 0; Blines = 0;
-  for (p = (char *)Aconad; p < (char *)Aconad+Aflen; p++) if (*p == '\n') Alines++;
-  for (p = (char *)Bconad; p < (char *)Bconad+Bflen; p++) if (*p == '\n') Blines++;
+  for (p = Aconad; p < Aconad+Aflen; p++) if (*p == '\n') Alines++;
+  for (p = Bconad; p < Bconad+Bflen; p++) if (*p == '\n') Blines++;
   AA = calloc(Alines+1, sizeof(char *));
   BB = calloc(Blines+1, sizeof(char *));
+
   if (AA == NULL || BB == NULL) {
     fprintf(stderr, "* Internal error: insufficient RAM available to store pointers to every line.\n");
     exit(EXIT_FAILURE);
   }
+
   Aline = 0;
-  AA[Aline++] = (char *)Aconad;
-  for (p = (char *)Aconad; p < (char *)Aconad+Aflen; p++) {
+  AA[Aline++] = Aconad;
+  for (p = Aconad; p < Aconad+Aflen; p++) {
     if (*p == '\n') AA[Aline++] = p+1;
   }
-  AA[Aline] = (char *)Aconad+Aflen;
+  AA[Aline] = Aconad+Aflen;
   Alines = Aline-1;
+
   Bline = 0;
-  BB[Bline++] = (char *)Bconad;
-  for (p = (char *)Bconad; p < (char *)Bconad+Bflen; p++) {
+  BB[Bline++] = Bconad;
+  for (p = Bconad; p < Bconad+Bflen; p++) {
     if (*p == '\n') BB[Bline++] = p+1;
   }
-  BB[Bline] = (char *)Bconad+Bflen;
+  BB[Bline] = Bconad+Bflen;
   Blines = Bline-1;
 
   Base[A] = Aline = 0; Base[B] = Bline = 0; /* Base[] (exclusive) represents the matches/diffs already output */
