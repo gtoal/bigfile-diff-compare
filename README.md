@@ -16,7 +16,11 @@ A simple text file comparison utility for extremely large text files that fail u
 
   Perhaps its biggest infelicity is that it will synchronise on a blank line.
   If that just isn't acceptable to you I think the fix would be around the
-  call to "Match"
+  call to "Match".  I added a new program, 'smallcompare', later, which uses
+  a different algorithm to produce better differences, but it is too slow for
+  using on really large files.  I just include it here in case it's useful
+  but honestly you might as well use 'diff' for anything that smallcompare
+  would be suitable for.
 
   The code is a bit crude and it's sort of based on my recollection of
   Hamish Dewar's far more elegant "compare" program from Edinburgh University
